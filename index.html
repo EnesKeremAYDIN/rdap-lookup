@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RDAP Lookup</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #0f1620;
+      --ink: #e8eef6;
+      --muted: #96a2b4;
+      --acc: #7aa8ff;
+      --line: #1f2a3a;
+      --ok: #39d98a;
+      --warn: #ffc24b;
+      --err: #ff6b6b
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial
+    }
+
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 24px
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      font-weight: 800
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer
+    }
+
+    .tab[aria-selected="true"] {
+      outline: 2px solid color-mix(in oklab, var(--acc), #000 70%)
+    }
+
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px
+    }
+
+    .panel.active {
+      display: block
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    input[type=text] {
+      flex: 1;
+      min-width: 260px;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 12px 14px;
+      border-radius: 12px;
+      outline: none
+    }
+
+    input[type=text]:focus {
+      border-color: #2c3950;
+      box-shadow: 0 0 0 3px rgba(122, 168, 255, .18)
+    }
+
+    button {
+      background: #0b1220;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor: pointer
+    }
+
+    button.primary {
+      background: linear-gradient(180deg, #8ab6ff, #5393ff);
+      color: #001129;
+      border: none
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: max(120px) 1fr;
+      gap: 8px 12px;
+      margin-top: 10px
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #0b1220;
+      font-size: 12px;
+      margin: 2px 4px 0 0
+    }
+
+    .pill.ok {
+      color: var(--ok)
+    }
+
+    .pill.warn {
+      color: var(--warn)
+    }
+
+    .json-section {
+      margin-top: 14px
+    }
+
+    .json-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s
+    }
+
+    .json-toggle:hover {
+      background: #0f1825
+    }
+
+    .json-toggle-icon {
+      transition: transform 0.2s;
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .json-toggle.collapsed .json-toggle-icon {
+      transform: rotate(-90deg)
+    }
+
+    .json-content {
+      display: block;
+      margin-top: 8px;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      padding: 14px;
+      border-radius: 10px;
+      max-height: 500px;
+      overflow: auto
+    }
+
+    .json-content.collapsed {
+      display: none
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.6
+    }
+
+    .json-key {
+      color: #7aa8ff
+    }
+
+    .json-string {
+      color: #39d98a
+    }
+
+    .json-number {
+      color: #ffc24b
+    }
+
+    .json-boolean {
+      color: #ff6b6b
+    }
+
+    .json-null {
+      color: var(--muted)
+    }
+
+    .list-head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px
+    }
+
+    .list {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden
+    }
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 16px;
+      padding: 12px 16px;
+      background: #0b1220;
+      border-bottom: 2px solid var(--line);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted)
+    }
+
+    .rowline {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      transition: background 0.15s
+    }
+
+    .rowline:nth-child(even) {
+      background: #0b1220
+    }
+
+    .rowline:hover {
+      background: rgba(122, 168, 255, 0.08)
+    }
+
+    .rowline:last-child {
+      border-bottom: none
+    }
+
+    .rowline-tld {
+      display: flex;
+      align-items: center;
+      font-weight: 500
+    }
+
+    .rowline-urls {
+      display: flex;
+      flex-direction: column;
+      gap: 4px
+    }
+
+    .rowline-primary {
+      font-weight: 500
+    }
+
+    .rowline-secondary {
+      font-size: 11.5px
+    }
+
+    code {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12.5px
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>RDAP Lookup</h1>
+    <div class="tabs" role="tablist">
+      <button id="t1" class="tab" role="tab" aria-selected="true" aria-controls="p1">Domain Lookup</button>
+      <button id="t2" class="tab" role="tab" aria-selected="false" aria-controls="p2">TLD → RDAP List</button>
+    </div>
+
+    <section id="p1" class="panel active" role="tabpanel" aria-labelledby="t1">
+      <div class="row">
+        <input id="domain" type="text" placeholder="e.g. example.com, örnek.tr, пример.рф" />
+        <button id="go" class="primary">Lookup</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top:8px"></div>
+      <div id="ans" style="margin-top:14px;display:none">
+        <div class="kv" id="kv"></div>
+        <div id="json-data" class="kv" style="margin-top:14px;display:none"></div>
+        <div id="status" style="margin-top:6px"></div>
+        <div class="json-section">
+          <div id="json-toggle" class="json-toggle">
+            <span class="json-toggle-icon">▼</span>
+            <span>JSON Response</span>
+          </div>
+          <div id="json-content" class="json-content collapsed">
+            <pre id="raw"></pre>
+          </div>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:8px">Note: Some RDAP servers may not provide CORS headers; the browser may block the request.</div>
+    </section>
+
+    <section id="p2" class="panel" role="tabpanel" aria-labelledby="t2">
+      <div class="list-head">
+        <div class="muted">IANA RDAP bootstrap — TLD → Base URL</div>
+        <input id="filter" type="text" placeholder="Search TLD or URL" style="max-width:260px" />
+      </div>
+      <div id="list" class="list"></div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const t1 = document.getElementById('t1'), t2 = document.getElementById('t2');
+      const p1 = document.getElementById('p1'), p2 = document.getElementById('p2');
+      function sel(tab) {
+        const a = tab === 1; p1.classList.toggle('active', a); p2.classList.toggle('active', !a);
+        t1.setAttribute('aria-selected', a ? 'true' : 'false');
+        t2.setAttribute('aria-selected', !a ? 'true' : 'false');
+      }
+      t1.onclick = () => sel(1); t2.onclick = () => sel(2);
+
+      const domainInput = document.getElementById('domain');
+      const go = document.getElementById('go');
+      const msg = document.getElementById('msg');
+      const ans = document.getElementById('ans');
+      const kv = document.getElementById('kv');
+      const statusBox = document.getElementById('status');
+      const raw = document.getElementById('raw');
+      const list = document.getElementById('list');
+      const filter = document.getElementById('filter');
+      const jsonToggle = document.getElementById('json-toggle');
+      const jsonContent = document.getElementById('json-content');
+      const jsonData = document.getElementById('json-data');
+
+      const BOOT_URL = 'https://data.iana.org/rdap/dns.json';
+      const CK = 'rdap_bootstrap_v2';
+      const TTL = 7 * 24 * 60 * 60 * 1000;
+
+      function now() { return Date.now() }
+      function cacheGet() { try { const o = JSON.parse(localStorage.getItem(CK) || 'null'); if (!o) return null; if (now() - o.t > TTL) return null; return o.d; } catch (e) { return null } }
+      function cacheSet(d) { try { localStorage.setItem(CK, JSON.stringify({ t: now(), d })) } catch (e) { } }
+
+      async function getBootstrap() {
+        const c = cacheGet(); if (c) return c;
+        msg.textContent = 'Loading bootstrap…';
+        const r = await fetch(BOOT_URL, { headers: { 'Accept': 'application/json' } });
+        if (!r.ok) throw new Error('Failed to download bootstrap');
+        const j = await r.json(); cacheSet(j); msg.textContent = ''; return j;
+      }
+
+      function toASCII(host) { try { return new URL('http://' + host.trim()).hostname.toLowerCase(); } catch (e) { return host.trim().toLowerCase(); } }
+      function splitDomain(d) { const p = d.split('.'); if (p.length < 2) throw new Error('Please enter a full domain name'); return { sld: p.slice(0, -1).join('.'), tld: p[p.length - 1], full: d }; }
+      function preferURL(urls) { return urls.slice().sort((a, b) => { const sa = (a.startsWith('https') ? 0 : 1) + (a.includes('rdap') ? 0 : 1); const sb = (b.startsWith('https') ? 0 : 1) + (b.includes('rdap') ? 0 : 1); return sa - sb; })[0].replace(/\/$/, ''); }
+      function baseForTLD(tld, boot) { for (const s of boot.services || []) { const labs = s[0] || [], urls = s[1] || []; if (labs.includes(tld)) return preferURL(urls); } return null; }
+
+      function renderKV(items, target = kv) { target.innerHTML = ''; for (const [k, v] of items) { const a = document.createElement('div'); a.className = 'muted'; a.textContent = k; const b = document.createElement('div'); b.innerHTML = v; target.append(a, b); } }
+      function pill(c) { const lc = (c || '').toLowerCase(); const cls = 'pill ' + (lc === 'ok' ? 'ok' : (lc.includes('hold') || lc.includes('prohibited') ? 'warn' : '')); return `<span class="${cls}">● ${c}</span>`; }
+
+      function extractVCardField(vcard, field) {
+        if (!Array.isArray(vcard) || vcard.length < 2) return null;
+        const arr = vcard[1];
+        for (const item of arr) {
+          if (Array.isArray(item) && item[0] === field && item.length >= 4) return item[3];
+        }
+        return null;
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return '';
+        try {
+          const d = new Date(dateStr);
+          return d.toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return dateStr; }
+      }
+
+      function renderJSONData(j) {
+        const items = [];
+        if (j.handle) items.push(['Handle', `<code>${j.handle}</code>`]);
+        if (j.ldhName) items.push(['LDH Name', `<code>${j.ldhName}</code>`]);
+
+        if (Array.isArray(j.entities)) {
+          const registrar = j.entities.find(e => Array.isArray(e.roles) && e.roles.includes('registrar'));
+          if (registrar) {
+            const name = extractVCardField(registrar.vcardArray, 'fn');
+            if (name) items.push(['Registrar', `<code>${name}</code>`]);
+            if (registrar.handle) items.push(['Registrar ID', `<code>${registrar.handle}</code>`]);
+          }
+
+          let abuse = j.entities.find(e => Array.isArray(e.roles) && e.roles.includes('abuse'));
+          if (!abuse && registrar && Array.isArray(registrar.entities)) {
+            abuse = registrar.entities.find(e => Array.isArray(e.roles) && e.roles.includes('abuse'));
+          }
+          if (abuse) {
+            const email = extractVCardField(abuse.vcardArray, 'email');
+            const tel = extractVCardField(abuse.vcardArray, 'tel');
+            if (email) items.push(['Abuse Email', `<code>${email}</code>`]);
+            if (tel) items.push(['Abuse Tel', `<code>${tel.replace(/^tel:/, '')}</code>`]);
+          }
+        }
+
+        if (Array.isArray(j.events)) {
+          for (const evt of j.events) {
+            if (evt.eventAction === 'registration' && evt.eventDate) {
+              items.push(['Registration Date', `<code>${formatDate(evt.eventDate)}</code>`]);
+            } else if (evt.eventAction === 'expiration' && evt.eventDate) {
+              items.push(['Expiration', `<code>${formatDate(evt.eventDate)}</code>`]);
+            } else if (evt.eventAction === 'last changed' && evt.eventDate) {
+              items.push(['Last Changed', `<code>${formatDate(evt.eventDate)}</code>`]);
+            }
+          }
+        }
+
+        if (Array.isArray(j.nameservers) && j.nameservers.length > 0) {
+          const nsList = j.nameservers.map(ns => ns.ldhName).filter(Boolean).join(', ');
+          if (nsList) items.push(['Nameservers', `<code>${nsList}</code>`]);
+        }
+
+        if (j.secureDNS && typeof j.secureDNS.delegationSigned === 'boolean') {
+          items.push(['DNSSEC', `<code>${j.secureDNS.delegationSigned ? 'Yes' : 'No'}</code>`]);
+        }
+
+        if (items.length > 0) {
+          renderKV(items, jsonData);
+          jsonData.style.display = 'grid';
+        } else {
+          jsonData.style.display = 'none';
+        }
+      }
+
+      function highlightJSON(jsonStr) {
+        return jsonStr
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+            let cls = '';
+            if (/^"/.test(match)) {
+              if (/:$/.test(match)) cls = 'json-key';
+              else cls = 'json-string';
+            } else if (/^true$|^false$/.test(match)) cls = 'json-boolean';
+            else if (/^null$/.test(match)) cls = 'json-null';
+            else if (/^-?\d+(\.\d+)?([eE][+\-]?\d+)?$/.test(match)) cls = 'json-number';
+            return cls ? `<span class="${cls}">${match}</span>` : match;
+          });
+      }
+
+      jsonToggle.onclick = () => {
+        jsonContent.classList.toggle('collapsed');
+        jsonToggle.classList.toggle('collapsed');
+      };
+
+      async function lookup() {
+        try {
+          go.disabled = true; ans.style.display = 'none'; statusBox.innerHTML = ''; raw.textContent = '';
+          jsonContent.classList.add('collapsed'); jsonToggle.classList.add('collapsed');
+          jsonData.style.display = 'none';
+          const ascii = toASCII(domainInput.value); const { sld, tld, full } = splitDomain(ascii);
+          const boot = await getBootstrap();
+          const base = baseForTLD(tld, boot);
+          if (!base) throw new Error(`RDAP not found for TLD: .${tld}`);
+          renderKV([['Domain', `<code>${full}</code>`], ['Name', `<code>${sld}</code>`], ['Extension', `<code>.${tld}</code>`], ['RDAP Base', `<code>${base}</code>`]]);
+          const u = `${base}/domain/${encodeURIComponent(full)}`;
+          const res = await fetch(u, { headers: { 'Accept': 'application/rdap+json, application/json' } });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const j = await res.json();
+          const jsonStr = JSON.stringify(j, null, 2);
+          raw.innerHTML = highlightJSON(jsonStr);
+          if (Array.isArray(j.status)) statusBox.innerHTML = j.status.map(pill).join('');
+          renderJSONData(j);
+          ans.style.display = 'block';
+        } catch (e) { alert(e.message || e); }
+        finally { go.disabled = false; }
+      }
+
+      async function renderList() {
+        const boot = await getBootstrap();
+        const rows = [];
+        for (const s of boot.services || []) {
+          const labels = s[0] || []; const urls = s[1] || []; const best = preferURL(urls);
+          for (const tld of labels) { rows.push({ tld, best, urls }); }
+        }
+        rows.sort((a, b) => a.tld.localeCompare(b.tld));
+
+        function draw(q = '') {
+          const f = q.trim().toLowerCase();
+          list.innerHTML = '';
+          const header = document.createElement('div'); header.className = 'table-header';
+          header.innerHTML = '<div>TLD</div><div>RDAP Base URL</div>';
+          list.appendChild(header);
+          for (const r of rows) {
+            if (f && !(r.tld.includes(f) || r.best.toLowerCase().includes(f))) continue;
+            const line = document.createElement('div'); line.className = 'rowline';
+            line.innerHTML = `<div class="rowline-tld"><code>.${r.tld}</code></div><div class="rowline-urls"><div class="rowline-primary"><code>${r.best}</code></div>${r.urls.length > 1 ? `<div class="rowline-secondary muted">${r.urls.map(u => `<code>${u}</code>`).join(' • ')}</div>` : ''}</div>`;
+            list.appendChild(line);
+          }
+        }
+        draw();
+        filter.oninput = () => draw(filter.value);
+      }
+
+      go.onclick = lookup; domainInput.addEventListener('keydown', e => { if (e.key === 'Enter') lookup() });
+      renderList();
+    })();
+  </script>
+</body>
+
+</html>
